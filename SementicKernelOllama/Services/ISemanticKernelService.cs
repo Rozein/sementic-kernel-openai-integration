@@ -1,7 +1,7 @@
 using Microsoft.SemanticKernel;
 using sementic_kernel_openai_integration.Plugins;
 
-namespace sementic_kernel_openai_integration.Services;
+namespace SementicKernelOllama.Services;
 
 public interface ISemanticKernelService
 {
@@ -10,5 +10,5 @@ public interface ISemanticKernelService
     Task<string> InvokePromptWithFunctionsAsync(string prompt, CancellationToken cancellationToken = default);
     Kernel GetKernel();
     void RegisterPDFStudyPlugin(PDFStudyPlugin pdfStudyPlugin);
-
+    Task InvokePromptWithFunctionsStreamAsync(string prompt, CancellationToken cancellationToken = default);
 }

@@ -4,8 +4,8 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.SemanticKernel;
 using sementic_kernel_openai_integration.Plugins;
-using sementic_kernel_openai_integration.Services;
-using sementic_kernel_openai_integration.Settings;
+using SementicKernelOllama.Services;
+using SementicKernelOllama.Settings;
 
 var builder = Host.CreateApplicationBuilder(args);
 

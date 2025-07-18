@@ -1,6 +1,6 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "sementic-kernel-openai-integration", "sementic-kernel-openai-integration\sementic-kernel-openai-integration.csproj", "{9A9413B3-64A1-4FEC-932F-B5D61D532A56}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SementicKernelOllama", "SementicKernelOllama\SementicKernelOllama.csproj", "{9A9413B3-64A1-4FEC-932F-B5D61D532A56}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

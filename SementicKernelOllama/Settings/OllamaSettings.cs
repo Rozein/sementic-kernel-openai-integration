@@ -1,4 +1,4 @@
-namespace sementic_kernel_openai_integration.Settings;
+namespace SementicKernelOllama.Settings;
 
 public class OllamaSettings
 {

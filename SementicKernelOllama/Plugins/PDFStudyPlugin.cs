@@ -1,7 +1,7 @@
 using System.ComponentModel;
 using Microsoft.SemanticKernel;
 using sementic_kernel_openai_integration.Models;
-using sementic_kernel_openai_integration.Services;
+using SementicKernelOllama.Services;
 
 namespace sementic_kernel_openai_integration.Plugins;
 

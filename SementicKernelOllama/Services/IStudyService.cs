@@ -1,6 +1,6 @@
 using sementic_kernel_openai_integration.Models;
 
-namespace sementic_kernel_openai_integration.Services;
+namespace SementicKernelOllama.Services;
 
 public interface IStudyService
 {

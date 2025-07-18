@@ -1,7 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using sementic_kernel_openai_integration.Plugins;
 
-namespace sementic_kernel_openai_integration.Services;
+namespace SementicKernelOllama.Services;
 
 public class StudyExamplesService : IStudyExamplesService
 {
@@ -66,9 +66,8 @@ public class StudyExamplesService : IStudyExamplesService
 
             try
             {
-                var response = await _kernelService.InvokePromptWithFunctionsAsync(
-                    $"Handle this study command: {input}. Use the appropriate PDF study functions.", cancellationToken);
-                Console.WriteLine(response);
+                 await _kernelService.InvokePromptWithFunctionsStreamAsync(
+                     $"Handle this study command: {input}. Use the appropriate PDF study functions.", cancellationToken);
                 Console.WriteLine();
             }
             catch (Exception ex)

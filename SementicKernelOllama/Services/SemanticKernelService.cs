@@ -3,9 +3,9 @@ using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
 using sementic_kernel_openai_integration.Plugins;
-using sementic_kernel_openai_integration.Settings;
+using SementicKernelOllama.Settings;
 
-namespace sementic_kernel_openai_integration.Services;
+namespace SementicKernelOllama.Services;
 
 public class SemanticKernelService : ISemanticKernelService
 {
@@ -190,24 +190,34 @@ public class SemanticKernelService : ISemanticKernelService
 
             Console.Write("AI: ");
 
+            var hasContent = false;
             await foreach (var update in _chatCompletionService.GetStreamingChatMessageContentsAsync(
-                chatHistory, 
-                settings, 
-                _kernel, 
-                cancellationToken))
+                               chatHistory, 
+                               settings, 
+                               _kernel, 
+                               cancellationToken))
             {
-                if (update.Content != null)
+                if (!string.IsNullOrEmpty(update.Content))
                 {
                     Console.Write(update.Content);
-                    await Task.Delay(50, cancellationToken); // Small delay for readability
+                    hasContent = true;
                 }
             }
 
-            Console.WriteLine(); // New line after streaming
+            if (hasContent)
+            {
+                Console.WriteLine(); // New line after streaming
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            Console.WriteLine("\nOperation was cancelled.");
+            // Don't rethrow cancellation exceptions
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error invoking prompt with functions (stream): {ex.Message}");
+            Console.WriteLine($"\nError invoking prompt with functions (stream): {ex.Message}");
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
             throw;
         }
     }

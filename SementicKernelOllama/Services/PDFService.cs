@@ -3,7 +3,7 @@ using System.Text.RegularExpressions;
 using sementic_kernel_openai_integration.Models;
 using UglyToad.PdfPig;
 
-namespace sementic_kernel_openai_integration.Services;
+namespace SementicKernelOllama.Services;
 
 public class PDFService : IPDFService
 {
@@ -61,7 +61,8 @@ public class PDFService : IPDFService
             result.ErrorMessage = $"Error processing PDF: {ex.Message}";
         }
 
-        return await Task.FromResult(result);    }
+        return await Task.FromResult(result);    
+    }
 
     public List<string> ChunkText(string text, int maxChunkSize = 2000)
     {

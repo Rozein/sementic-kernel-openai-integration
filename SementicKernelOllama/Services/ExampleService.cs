@@ -1,4 +1,4 @@
-namespace sementic_kernel_openai_integration.Services;
+namespace SementicKernelOllama.Services;
 
 public class ExampleService : IExampleService
 {
