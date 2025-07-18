@@ -1,7 +1,9 @@
 using Microsoft.Extensions.Options;
 using Microsoft.SemanticKernel;
+using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
 using sementic_kernel_openai_integration.Plugins;
+using sementic_kernel_openai_integration.Settings;
 
 namespace sementic_kernel_openai_integration.Services;
 
@@ -11,146 +13,88 @@ public class SemanticKernelService : ISemanticKernelService
     private readonly WeatherPlugin _weatherPlugin;
     private readonly MathPlugin _mathPlugin;
     private readonly TextPlugin _textPlugin;
+    private readonly HttpClient _httpClient;
     private Kernel? _kernel;
+    private IChatCompletionService? _chatCompletionService;
 
-    public SemanticKernelService(WeatherPlugin weatherPlugin, IOptions<OllamaSettings> settings, MathPlugin mathPlugin, TextPlugin textPlugin)
+    public SemanticKernelService(
+        IOptions<OllamaSettings> settings,
+        WeatherPlugin weatherPlugin,
+        MathPlugin mathPlugin,
+        TextPlugin textPlugin)
     {
-        _weatherPlugin = weatherPlugin;
         _settings = settings.Value;
+        _weatherPlugin = weatherPlugin;
         _mathPlugin = mathPlugin;
         _textPlugin = textPlugin;
+        _httpClient = new HttpClient();
         
+        // Debug output
         Console.WriteLine($"Model ID: {_settings.ModelId}");
         Console.WriteLine($"Endpoint: {_settings.Endpoint}");
     }
+
     public async Task InitializeAsync()
     {
         try
         {
-            Console.WriteLine("Initializing Semantic Kernel with Ollama...");
+            Console.WriteLine("Initializing Semantic Kernel with Chat Completion Service...");
 
+            // Test Ollama connection
+            await TestOllamaConnectionAsync();
+
+            // Create kernel with proper chat completion service
             var builder = Kernel.CreateBuilder();
-
+            
+            // Add OpenAI chat completion pointing to Ollama
             builder.AddOpenAIChatCompletion(
                 modelId: _settings.ModelId,
-                apiKey: "not-needed", 
-                endpoint: new Uri(_settings.Endpoint + "/v1")); 
-
+                apiKey: "ollama-local", // Dummy key for local Ollama
+                endpoint: new Uri($"{_settings.Endpoint}/v1")); // Ollama OpenAI-compatible endpoint
 
             _kernel = builder.Build();
+            
+            // Get the chat completion service
+            _chatCompletionService = _kernel.GetRequiredService<IChatCompletionService>();
 
             await RegisterPluginsAsync();
             
-            Console.WriteLine("Semantic Kernel initialized successfully");
+            Console.WriteLine("Semantic Kernel initialized successfully with Chat Completion");
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Failed to initialize Semantic Kernel: {ex.Message}");
             throw;
         }
-        
     }
 
-    public async Task<string> InvokePromptAsync(string prompt, CancellationToken cancellationToken = default)
+    private async Task TestOllamaConnectionAsync()
     {
-        ArgumentNullException.ThrowIfNull(_kernel);
-        ArgumentException.ThrowIfNullOrWhiteSpace(prompt);
-
-        const int maxRetries = 3;
-        var delay = TimeSpan.FromSeconds(1);
-
-        for (int attempt = 1; attempt <= maxRetries; attempt++)
+        try
         {
-            try
+            var response = await _httpClient.GetAsync($"{_settings.Endpoint}/api/tags");
+            if (response.IsSuccessStatusCode)
             {
-                var result = await _kernel.InvokePromptAsync(prompt, cancellationToken: cancellationToken);
-                return result.ToString();
+                Console.WriteLine("✅ Ollama connection successful");
             }
-            catch (Exception ex) when (ex.Message.Contains("429") || ex.Message.Contains("quota"))
+            else
             {
-                Console.WriteLine($"Rate limit hit (attempt {attempt}/{maxRetries}). Waiting {delay.TotalSeconds} seconds...");
-                
-                if (attempt == maxRetries)
-                {
-                    Console.WriteLine("❌ API quota exceeded. Please:");
-                    Console.WriteLine("1. Check your OpenAI billing at https://platform.openai.com/account/billing");
-                    Console.WriteLine("2. Add credits to your account");
-                    Console.WriteLine("3. Verify your usage limits");
-                    throw;
-                }
-                
-                await Task.Delay(delay, cancellationToken);
-                delay = TimeSpan.FromSeconds(delay.TotalSeconds * 2); // Exponential backoff
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error invoking prompt: {ex.Message}");
-                throw;
+                throw new Exception($"Ollama connection failed: {response.StatusCode}");
             }
         }
-        
-        return string.Empty; 
-    }
-
-    public  async Task<string> InvokePromptWithFunctionsAsync(string prompt, CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(_kernel);
-        ArgumentException.ThrowIfNullOrWhiteSpace(prompt);
-
-        const int maxRetries = 3;
-        var delay = TimeSpan.FromSeconds(1);
-
-        for (int attempt = 1; attempt <= maxRetries; attempt++)
+        catch (Exception ex)
         {
-            try
-            {
-                var settings = new OpenAIPromptExecutionSettings()
-                {
-                    Temperature = _settings.Temperature,
-                    MaxTokens = _settings.MaxTokens
-                };
-
-                var result = await _kernel.InvokePromptAsync(prompt, new KernelArguments(settings), cancellationToken: cancellationToken);
-                return result.ToString();
-            }
-            catch (Exception ex) when (ex.Message.Contains("429") || ex.Message.Contains("quota"))
-            {
-                Console.WriteLine($"Rate limit hit (attempt {attempt}/{maxRetries}). Waiting {delay.TotalSeconds} seconds...");
-                
-                if (attempt == maxRetries)
-                {
-                    Console.WriteLine("❌ API quota exceeded. Please:");
-                    Console.WriteLine("1. Check your OpenAI billing at https://platform.openai.com/account/billing");
-                    Console.WriteLine("2. Add credits to your account");
-                    Console.WriteLine("3. Verify your usage limits");
-                    throw;
-                }
-                
-                await Task.Delay(delay, cancellationToken);
-                delay = TimeSpan.FromSeconds(delay.TotalSeconds * 2); // Exponential backoff
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error invoking prompt with functions: {ex.Message}");
-                throw;
-            }
+            throw new Exception($"Cannot connect to Ollama at {_settings.Endpoint}. Make sure 'ollama serve' is running. Error: {ex.Message}");
         }
-        
-        return string.Empty;
     }
 
-    public Kernel GetKernel()
-    {
-        ArgumentNullException.ThrowIfNull(_kernel);
-        return _kernel;
-    }
     private async Task RegisterPluginsAsync()
     {
         ArgumentNullException.ThrowIfNull(_kernel);
 
         Console.WriteLine("Registering plugins...");
 
-        // Register plugins with dependency injection
+        // Register basic plugins
         var weatherFunctions = _kernel.CreatePluginFromObject(_weatherPlugin, "Weather");
         _kernel.Plugins.Add(weatherFunctions);
 
@@ -160,8 +104,132 @@ public class SemanticKernelService : ISemanticKernelService
         var textFunctions = _kernel.CreatePluginFromObject(_textPlugin, "Text");
         _kernel.Plugins.Add(textFunctions);
 
-        Console.WriteLine("Plugins registered successfully");
+        Console.WriteLine("Basic plugins registered successfully (Weather, Math, Text)");
         await Task.CompletedTask;
     }
 
+    public async Task<string> InvokePromptAsync(string prompt, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(_chatCompletionService);
+        ArgumentException.ThrowIfNullOrWhiteSpace(prompt);
+
+        try
+        {
+            var chatHistory = new ChatHistory();
+            chatHistory.AddUserMessage(prompt);
+
+            var settings = new OpenAIPromptExecutionSettings()
+            {
+                Temperature = _settings.Temperature,
+                MaxTokens = _settings.MaxTokens
+            };
+
+            var result = await _chatCompletionService.GetChatMessageContentsAsync(
+                chatHistory, 
+                settings, 
+                _kernel, 
+                cancellationToken);
+
+            return result[0].Content ?? "No response";
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error invoking prompt: {ex.Message}");
+            throw;
+        }
+    }
+
+    public async Task<string> InvokePromptWithFunctionsAsync(string prompt, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(_chatCompletionService);
+        ArgumentException.ThrowIfNullOrWhiteSpace(prompt);
+
+        try
+        {
+            var chatHistory = new ChatHistory();
+            chatHistory.AddUserMessage(prompt);
+
+            var settings = new OpenAIPromptExecutionSettings()
+            {
+                Temperature = _settings.Temperature,
+                MaxTokens = _settings.MaxTokens,
+                ToolCallBehavior = ToolCallBehavior.AutoInvokeKernelFunctions
+            };
+
+            var result = await _chatCompletionService.GetChatMessageContentsAsync(
+                chatHistory, 
+                settings, 
+                _kernel, 
+                cancellationToken);
+
+            return result[0].Content ?? "No response";
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error invoking prompt with functions: {ex.Message}");
+            throw;
+        }
+    }
+
+    public async Task InvokePromptWithFunctionsStreamAsync(string prompt, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(_chatCompletionService);
+        ArgumentException.ThrowIfNullOrWhiteSpace(prompt);
+
+        try
+        {
+            var chatHistory = new ChatHistory();
+            chatHistory.AddUserMessage(prompt);
+
+            var settings = new OpenAIPromptExecutionSettings()
+            {
+                Temperature = _settings.Temperature,
+                MaxTokens = _settings.MaxTokens,
+                ToolCallBehavior = ToolCallBehavior.AutoInvokeKernelFunctions
+            };
+
+            Console.Write("AI: ");
+
+            await foreach (var update in _chatCompletionService.GetStreamingChatMessageContentsAsync(
+                chatHistory, 
+                settings, 
+                _kernel, 
+                cancellationToken))
+            {
+                if (update.Content != null)
+                {
+                    Console.Write(update.Content);
+                    await Task.Delay(50, cancellationToken); // Small delay for readability
+                }
+            }
+
+            Console.WriteLine(); // New line after streaming
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error invoking prompt with functions (stream): {ex.Message}");
+            throw;
+        }
+    }
+
+    public Kernel GetKernel()
+    {
+        ArgumentNullException.ThrowIfNull(_kernel);
+        return _kernel;
+    }
+    public void RegisterPDFStudyPlugin(PDFStudyPlugin pdfStudyPlugin)
+    {
+        ArgumentNullException.ThrowIfNull(_kernel);
+        
+        try
+        {
+            var pdfStudyFunctions = _kernel.CreatePluginFromObject(pdfStudyPlugin, "PDFStudy");
+            _kernel.Plugins.Add(pdfStudyFunctions);
+            Console.WriteLine("PDFStudy plugin registered successfully");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error registering PDFStudy plugin: {ex.Message}");
+        }
+    }
 }

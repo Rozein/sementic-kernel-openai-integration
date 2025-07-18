@@ -18,6 +18,11 @@
         <None Update="appsettings.json">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </None>
+        <PackageReference Include="PdfPig" Version="0.1.8" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="TestPDFs\" />
     </ItemGroup>
 
 </Project>
